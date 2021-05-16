@@ -52,15 +52,39 @@ void fill(char *field, int i0, int j0, int i1, int j1,
 
 extern "C"
 {
+
+	void savefiles(int iter)
+	{
+		int i, j;
+		char density_path[100], move_path[100], rest_path[100];
+		FILE *fl_density, *fl_move, *fl_rest;
+
+		sprintf(density_path, "density/%06d.xls", iter);
+		sprintf(move_path, "move/%06d.xls", iter);
+		sprintf(rest_path, "rest/%06d.xls", iter);
+		fl_density=fopen(density_path, "w");
+		fl_move=fopen(move_path, "w");
+		fl_rest=fopen(rest_path, "w");
+		fclose(fl_density);
+		fclose(fl_rest);
+		fclose(fl_move);
+	}
+
+	void c_iprint(int n, InputDF &fi)
+	{
+		printf("POLE %d\n", n);
+		char *field = fi.getData<char>();
+		for (int i = 0; i < 100; i++)
+		{
+			printf("%d ", field[i]);
+		}
+		printf("\n");
+	}
+
 	void init(int n, OutputDF &df)
 	{
 		char *field = df.create<char>(2700, 0); //полоса
 		fill(field, 0, 0, 25, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0, n);
-	}
-
-	void iprint(int n, InputDF &fi)
-	{
-		char *field = fi.getData<char>();
 	}
 
 	void collide(int n, InputDF &dfi, OutputDF &dfo, OutputDF &dfo1, OutputDF &dfo2)
@@ -70,7 +94,7 @@ extern "C"
 		char *gr2 = dfo2.create<char>(WIDTH, 0);
 		char *field = dfi.getData<char>();
 		for (int i = 100; i < 2600; i++)
-				field[i] = collide1(field[i]);
+				field[i] = collideL(field[i]);
 		for (int i = 100; i < 200; i++)
 			gr1[i - 100] = field[i];
 		for (int j = 2500, i = 0; j < 2600; j++, i++)
@@ -105,19 +129,12 @@ extern "C"
 			for (j=0; j<WIDTH; j++) 
 			{
 			char cell=FIELD(i, j)&0xf0; // keep rest mass
-
 			// propogate particles
 			if (FIELD(i, (j+WIDTH-1)%WIDTH)&RIGHT) cell+=RIGHT; //field[(i)*(WIDTH) + j]
 			if (FIELD(i, (j+1)%WIDTH)&LEFT) cell+=LEFT;
 			if (FIELD((i+HEIGHT_N-1)%HEIGHT_N, j)&UP) cell+=UP;
 			if (FIELD((i+1)%HEIGHT_N, j)&DOWN) cell+=DOWN;
-			/*
-			// propogate particles
-			if (FIELD(i, (j+WIDTH-1)%WIDTH)&DOWN) cell+=DOWN; //field[(i)*(WIDTH) + j]
-			if (FIELD(i, (j+1)%WIDTH)&RIGHT) cell+=RIGHT;
-			if (FIELD((i+HEIGHT_N-1)%HEIGHT_N, j)&UP) cell+=UP;
-			if (FIELD((i+1)%HEIGHT_N, j)&LEFT) cell+=LEFT;
-			*/
+
 			NEW_FIELD(i, j)=cell;
 			}
 		}

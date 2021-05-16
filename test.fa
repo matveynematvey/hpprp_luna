@@ -3,15 +3,17 @@ import collide(int, value, name, name, name) as collide;
 import iprint(int, value) as iprint;
 import fillShadowEdges(int, value, value, value, name) as fillShadowEdges;
 import nextLayer(int, value, name) as nextLayer;
-
+import c_iprint(int, value) as iprint;
+import savefiles(int) as savefiles;
+import save(int, value) as save;
 sub main()
 {
 	df field;
-	for n=0..3 
+	for n=0..3
 	{
-		init(n, field[0][n]);
+		init(0, field[0][n]);
 	}
-	for j=1..10
+	for j=1..1
 	{
 		for n=0..3
 		{
@@ -31,7 +33,14 @@ sub main()
 		for n=0..3 
 		{
 			nextLayer(n, field[j*3-1][n], field[j*3][n]);
+		}	
+		if (j == 5) { savefiles(j); }
+/*
+		for n=0..3 
+		{
+			save(n, field[j*3][n]);
 		}
+*/
 	}
 }
 
