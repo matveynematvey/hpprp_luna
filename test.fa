@@ -1,0 +1,37 @@
+import init(int, name) as init;
+import collide(int, value, name, name, name) as collide;
+import iprint(int, value) as iprint;
+import fillShadowEdges(int, value, value, value, name) as fillShadowEdges;
+import nextLayer(int, value, name) as nextLayer;
+
+sub main()
+{
+	df field;
+	for n=0..3 
+	{
+		init(n, field[0][n]);
+	}
+	for j=1..10
+	{
+		for n=0..3
+		{
+			collide(n, field[j*3-3][n], field[j*3-2][n], field[0][j*3-2][n], field[1][j*3-2][n]);
+		}
+		for n=0..3
+		{
+			if (n == 0)
+				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][3], field[0][j*3-2][1], field[j*3-1][n]);
+			if (n == 1)
+				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][0], field[0][j*3-2][2], field[j*3-1][n]);
+			if (n == 2)
+				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][1], field[0][j*3-2][3], field[j*3-1][n]);
+			if (n == 3)
+				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][2], field[0][j*3-2][0], field[j*3-1][n]);
+		}
+		for n=0..3 
+		{
+			nextLayer(n, field[j*3-1][n], field[j*3][n]);
+		}
+	}
+}
+
