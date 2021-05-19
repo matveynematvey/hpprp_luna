@@ -34,7 +34,7 @@ sub main()
 		{
 			nextLayer(n, field[j*3-1][n], field[j*3][n]);
 		}	
-		if (j == 5) { savefiles(j); }
+		if (j == 1) { savefiles(j); }
 /*
 		for n=0..3 
 		{

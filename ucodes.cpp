@@ -53,7 +53,7 @@ void fill(char *field, int i0, int j0, int i1, int j1,
 extern "C"
 {
 
-	void savefiles(int iter)
+	void save(int iter, InputDF &fi)
 	{
 		int i, j;
 		char density_path[100], move_path[100], rest_path[100];
@@ -62,12 +62,37 @@ extern "C"
 		sprintf(density_path, "density/%06d.xls", iter);
 		sprintf(move_path, "move/%06d.xls", iter);
 		sprintf(rest_path, "rest/%06d.xls", iter);
-		fl_density=fopen(density_path, "w");
-		fl_move=fopen(move_path, "w");
-		fl_rest=fopen(rest_path, "w");
+		fl_density=fopen(density_path, "a");
+		fl_move=fopen(move_path, "a");
+		fl_rest=fopen(rest_path, "a");
+
+		char *field = fi.getData<char>();
+
+		for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS-1; j++) {
+		int rest=0, move=0;
+		double new_density, new_move, new_rest;
+		for (i=AVERAGING_RADIUS; i<HEIGHT-AVERAGING_RADIUS-1; i++) {
+			sum_mass(i, j, &rest, &move);
+		}
+
+		
+		new_density=1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+		new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+		new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+
+		write(fl_density, j, ensemble, old_density, new_density);
+		write(fl_move, j, ensemble, old_move, new_move);
+		write(fl_rest, j, ensemble, old_rest, new_rest);
+
+		
+	}
 		fclose(fl_density);
 		fclose(fl_rest);
 		fclose(fl_move);
+
+		free(old_density);
+		free(old_move);
+		free(old_rest);
 	}
 
 	void c_iprint(int n, InputDF &fi)
