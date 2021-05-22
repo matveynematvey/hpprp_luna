@@ -15,6 +15,7 @@
 #define WIDTH 100
 #define HEIGHT 100
 #define ITERS 20
+#define AVERAGING_RADIUS 2
 #define FIELD(i, j) field[(i)*(HEIGHT) + j]
 #define NEW_FIELD(i, j) new_field[(i)*(HEIGHT) + j]
 
@@ -53,47 +54,92 @@ void fill(char *field, int i0, int j0, int i1, int j1,
 extern "C"
 {
 
-	void save(int iter, InputDF &fi)
+	inline int get_move(char cell)
+	{
+		int mass=0;
+		if (cell&RIGHT) mass+=1;
+		if (cell&DOWN) mass+=1;
+		if (cell&LEFT) mass+=1;
+		if (cell&UP) mass+=1;
+		return mass;
+	}
+
+	inline int get_rest(char cell)
+	{
+		int mass=0;
+		if (cell&RP1) mass+=2;
+		if (cell&RP2) mass+=4;
+		if (cell&RP3) mass+=8;
+		if (cell&RP4) mass+=16;
+		return mass;
+	}
+
+	void sum_mass(int row, int col, int* rest, int* move, char *field)
 	{
 		int i, j;
+		for (i=-AVERAGING_RADIUS; i<=AVERAGING_RADIUS; i++) {
+			for (j=-AVERAGING_RADIUS; j<=AVERAGING_RADIUS; j++) {
+				*rest+=get_rest(FIELD(i+row, j+col));
+				*move+=get_move(FIELD(i+row, j+col));
+			}
+		}
+	}
+
+	void save(int iter, int layer, InputDF &fi)
+	{
+		char *field = fi.getData<char>();
+		int i, j, rad1 = 0, rad2 = 0;
 		char density_path[100], move_path[100], rest_path[100];
 		FILE *fl_density, *fl_move, *fl_rest;
+		double square=(AVERAGING_RADIUS*2+1)*(AVERAGING_RADIUS*2+1);
+		double *old_density=0, *old_move=0, *old_rest=0;
 
 		sprintf(density_path, "density/%06d.xls", iter);
 		sprintf(move_path, "move/%06d.xls", iter);
 		sprintf(rest_path, "rest/%06d.xls", iter);
+		
+		if (layer == 0) 
+		{
+			rad1 = AVERAGING_RADIUS;
+			rad2 = 0;
+			fl_density=fopen(density_path, "w");
+			fl_move=fopen(move_path, "w");
+			fl_rest=fopen(rest_path, "w");
+		}
+		if (layer == 3)
+		{
+			rad2 = AVERAGING_RADIUS;
+			rad1 = 0;
+		}
+
 		fl_density=fopen(density_path, "a");
 		fl_move=fopen(move_path, "a");
 		fl_rest=fopen(rest_path, "a");
+	
+		for (i=rad1; i<HEIGHT/4-rad2; i++) {
+			int rest=0, move=0;
+			double new_density, new_move, new_rest;
+			for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS; j++) {
+				sum_mass(i, j, &rest, &move, field);
+			}
 
-		char *field = fi.getData<char>();
+			
+			new_density=1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 
-		for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS-1; j++) {
-		int rest=0, move=0;
-		double new_density, new_move, new_rest;
-		for (i=AVERAGING_RADIUS; i<HEIGHT-AVERAGING_RADIUS-1; i++) {
-			sum_mass(i, j, &rest, &move);
+			fprintf(fl_density, "%d\t%lf\n", i, new_density);
+			
 		}
 
-		
-		new_density=1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-		new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-		new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-
-		write(fl_density, j, ensemble, old_density, new_density);
-		write(fl_move, j, ensemble, old_move, new_move);
-		write(fl_rest, j, ensemble, old_rest, new_rest);
-
-		
+		if (layer == 3)
+		{
+			fclose(fl_density);
+			fclose(fl_rest);
+			fclose(fl_move);
+		}
 	}
-		fclose(fl_density);
-		fclose(fl_rest);
-		fclose(fl_move);
 
-		free(old_density);
-		free(old_move);
-		free(old_rest);
-	}
 
 	void c_iprint(int n, InputDF &fi)
 	{
