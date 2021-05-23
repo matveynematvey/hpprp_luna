@@ -1,0 +1,6 @@
+luna: fatal error: run-time error: errcode=-11
+err> [Anton:15364] *** Process received signal ***
+err> [Anton:15364] Signal: Segmentation fault (11)
+err> [Anton:15364] Signal code: Address not mapped (1)
+err> [Anton:15364] Failing at address: 0x20
+err> 

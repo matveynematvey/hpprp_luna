@@ -19,9 +19,11 @@
 #define FIELD(i, j) field[(i)*(HEIGHT) + j]
 #define NEW_FIELD(i, j) new_field[(i)*(HEIGHT) + j]
 
+size_t splits;
+
 void fill(char *field, int i0, int j0, int i1, int j1,
 		  double r, double d, double l, double u,
-		  double r1, double r2, double r3, double r4, int n)
+		  double r1, double r2, double r3, double r4)
 {
 	int i, j;
 	for (i = i0; i < i1; i++)
@@ -54,7 +56,7 @@ void fill(char *field, int i0, int j0, int i1, int j1,
 extern "C"
 {
 
-	inline int get_move(char cell)
+	inline int GetMove(char cell)
 	{
 		int mass=0;
 		if (cell&RIGHT) mass+=1;
@@ -64,7 +66,7 @@ extern "C"
 		return mass;
 	}
 
-	inline int get_rest(char cell)
+	inline int GetRest(char cell)
 	{
 		int mass=0;
 		if (cell&RP1) mass+=2;
@@ -74,18 +76,18 @@ extern "C"
 		return mass;
 	}
 
-	void sum_mass(int row, int col, int* rest, int* move, char *field)
+	void SumMass(int row, int col, int* rest, int* move, char *field)
 	{
 		int i, j;
 		for (i=-AVERAGING_RADIUS; i<=AVERAGING_RADIUS; i++) {
 			for (j=-AVERAGING_RADIUS; j<=AVERAGING_RADIUS; j++) {
-				*rest+=get_rest(FIELD(i+row, j+col));
-				*move+=get_move(FIELD(i+row, j+col));
+				*rest+=GetRest(FIELD(i+row, j+col));
+				*move+=GetMove(FIELD(i+row, j+col));
 			}
 		}
 	}
 
-	void save(int iter, int layer, InputDF &fi)
+	void SaveToFiles(int iter, int layer, InputDF &fi)
 	{
 		char *field = fi.getData<char>();
 		int i, j, rad1 = 0, rad2 = 0;
@@ -98,7 +100,7 @@ extern "C"
 		sprintf(move_path, "move/%06d.xls", iter);
 		sprintf(rest_path, "rest/%06d.xls", iter);
 		
-		if (layer == 0) 
+		if (layer == 1) 
 		{
 			rad1 = AVERAGING_RADIUS;
 			rad2 = 0;
@@ -106,7 +108,7 @@ extern "C"
 			fl_move=fopen(move_path, "w");
 			fl_rest=fopen(rest_path, "w");
 		}
-		if (layer == 3)
+		if (layer == splits)
 		{
 			rad2 = AVERAGING_RADIUS;
 			rad1 = 0;
@@ -116,11 +118,11 @@ extern "C"
 		fl_move=fopen(move_path, "a");
 		fl_rest=fopen(rest_path, "a");
 	
-		for (i=rad1; i<HEIGHT/4-rad2; i++) {
+		for (i=rad1; i < (HEIGHT / splits) - rad2; i++) {
 			int rest=0, move=0;
 			double new_density, new_move, new_rest;
 			for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS; j++) {
-				sum_mass(i, j, &rest, &move, field);
+				SumMass(i, j, &rest, &move, field);
 			}
 
 			
@@ -128,11 +130,11 @@ extern "C"
 			new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 			new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 
-			fprintf(fl_density, "%d\t%lf\n", i, new_density);
+			fprintf(fl_density, "%d\t%lf\n", layer, new_density);
 			
 		}
 
-		if (layer == 3)
+		if (layer == splits)
 		{
 			fclose(fl_density);
 			fclose(fl_rest);
@@ -143,22 +145,28 @@ extern "C"
 
 	void c_iprint(int n, InputDF &fi)
 	{
-		printf("POLE %d\n", n);
 		char *field = fi.getData<char>();
-		for (int i = 0; i < 100; i++)
-		{
-			printf("%d ", field[i]);
-		}
-		printf("\n");
+		printf("%d\n", n);
+		//for (int i = 0; i < 10; i++)
+		//{
+		//	printf("%d ", test[i]);
+		//}
 	}
 
-	void init(int n, OutputDF &df)
+	void SetField(OutputDF &df)
 	{
 		char *field = df.create<char>(2700, 0); //полоса
-		fill(field, 0, 0, 25, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0, n);
+		fill(field, 0, 0, HEIGHT / splits, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0);
 	}
 
-	void collide(int n, InputDF &dfi, OutputDF &dfo, OutputDF &dfo1, OutputDF &dfo2)
+	void InitSplitsAndIters(OutputDF &df1, int val1, OutputDF &df2, int val2)
+	{
+		splits = val2;
+		df1.setValue<int>(val1);
+		df2.setValue<int>(val2);
+	}
+
+	void CollideCells(InputDF &dfi, OutputDF &dfo, OutputDF &dfo1, OutputDF &dfo2)
 	{
 		dfo = dfi;
 		char *gr1 = dfo1.create<char>(WIDTH, 0);
@@ -173,9 +181,8 @@ extern "C"
 		
 	}
 
-	void fillShadowEdges(int n, InputDF &dfi, InputDF &dfi1, InputDF &dfi2, OutputDF &dfo)
+	void FillEdges(InputDF &dfi, InputDF &dfi1, InputDF &dfi2, OutputDF &dfo)
 	{
-		//char *fieldg = dfo.create<char>(2700, 0);
 		dfo = dfi;
 		char *field = dfi.getData<char>();
 		char *gr1 = dfi1.getData<char>();
@@ -188,12 +195,12 @@ extern "C"
 		
 	}
 
-	void nextLayer(int n, InputDF &dfi, OutputDF &dfo)
+	void AssemblyNewLayer(InputDF &dfi, OutputDF &dfo)
 {
 		char *field = dfi.getData<char>();
 		char *new_field = dfo.create<char>(2700, 0);	
 		dfo = dfi;
-		int HEIGHT_N = HEIGHT / 4;
+		int HEIGHT_N = HEIGHT / splits;
 		for (int i=1; i < HEIGHT_N+1; i++) 
 		{
 			int j;

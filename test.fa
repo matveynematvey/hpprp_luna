@@ -1,42 +1,62 @@
-import init(int, name) as init;
-import collide(int, value, name, name, name) as collide;
-import iprint(int, value) as iprint;
-import fillShadowEdges(int, value, value, value, name) as fillShadowEdges;
-import nextLayer(int, value, name) as nextLayer;
+import SetField(name) as SetField;				       //field initialization 									
+import InitSplitsAndIters(name, int, name, int) as Init;	       //number of iterations and field splits initialization 
+import CollideCells(value, name, name, name) as Collide;	       //collide cells
+import FillEdges(value, value, value, name) as FillEdges;	       //assembly split with shadow edges
+import AssemblyNewLayer(value, name) as NewLayer;	 	       //assembly new layer	
+import SaveToFiles(int, int, value) as Save;			       //save to files
 import c_iprint(int, value) as iprint;
-import save(int, int, value) as save;
+
+
 sub main()
 {
-	df field;
-	for n=0..3
+	df iters, splits, field, x;					//number of iterations and field splits, computational field, auxiliary vector
+	
+	Init(iters, 10, splits, 4);					//set value of iterations and field splits
+
+	//field initialization 	
+	for n=1..splits							
 	{
-		init(0, field[0][n]);
+		SetField(field[0][n]);					//field[number of layer][number of split]
 	}
-	for j=1..1
+	//iterative process
+	for j=1..iters							
 	{
-		for n=0..3
+
+		//collision of cells in one split
+		for n=1..splits						
 		{
-			collide(n, field[j*3-3][n], field[j*3-2][n], field[0][j*3-2][n], field[1][j*3-2][n]);
+			//number of split, old field[layer][split] layer, new field[layer+1][split] layer,
+			//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
+			Collide(field[j*3-3][n], field[j*3-2][n], field[j*3-2][n][0], field[j*3-2][n][1]);
 		}
-		for n=0..3
+
+		//assembly splits with shadow edges										
+			//first split
+		FillEdges(field[j*3-2][1], field[j*3-2][splits][1], field[j*3-2][2][0], field[j*3-1][1]);
+			//last split
+		FillEdges(field[j*3-2][splits], field[j*3-2][splits - 1][1], field[j*3-2][1][0], field[j*3-1][splits]);		
+		for n=2..splits-1
 		{
-			if (n == 0)
-				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][3], field[0][j*3-2][1], field[j*3-1][n]);
-			if (n == 1)
-				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][0], field[0][j*3-2][2], field[j*3-1][n]);
-			if (n == 2)
-				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][1], field[0][j*3-2][3], field[j*3-1][n]);
-			if (n == 3)
-				fillShadowEdges(n, field[j*3-2][n], field[1][j*3-2][2], field[0][j*3-2][0], field[j*3-1][n]);
+			FillEdges(field[j*3-2][n], field[j*3-2][n][1], field[j*3-2][n+1][0], field[j*3-1][n]);
 		}
-		for n=0..3 
+
+		//assembly new layer
+		for n=1..splits
 		{
-			nextLayer(n, field[j*3-1][n], field[j*3][n]);
-		}	
-		for n=0..3 
-		{
-			save(j, n, field[j*3][n]);
+			NewLayer(field[j*3-1][n], field[j*3][n]); //old field[layer][split], new field[layer+1][split] 
 		}
+		
+		//saving to files
+		//if (j%5 == 0)
+		//{	
+			Save(j, 1, field[j*3][1]) >> (x[((j - 1) * splits)]);
+			for n=2..splits
+			{
+				if (x[((j - 1) * splits) + n - 2])
+				Save(j, n, field[j*3][n]) >> (x[((j - 1) * splits) + n - 1]);
+			}
+		//}
+
 	}
 }
 
