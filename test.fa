@@ -2,22 +2,27 @@ import SetField(name) as SetField;				       //field initialization
 import InitSplitsAndIters(name, int, name, int) as Init;	       //number of iterations and field splits initialization 
 import CollideCells(value, name, name, name) as Collide;	       //collide cells
 import FillEdges(value, value, value, name) as FillEdges;	       //assembly split with shadow edges
-import AssemblyNewLayer(value, name) as NewLayer;	 	       //assembly new layer	
-import SaveToFiles(int, int, int, value) as Save;		       //save to files
+import AssemblyNewLayer(value, name) as NewLayer;	 	       //assembly new layer
+import Calculation(int, int, int, value, value, name) as Calc;	       //calculation of density, rest and move
+import SaveToFiles(int, int, value) as Save;	       	       	       //save to files
 import InitIndex(name, int) as Index;	      	       		       //number of iterations and field splits initialization 
-import c_iprint(int) as iprint;
+import InitFiction(name) as Fict;
+import c_iprint(int, value) as iprint;
 
 
 sub main()
 {
-	df iters, splits, field, x, ind;				//number of iterations and field splits, computational field, auxiliary vector
+	df iters, splits, field, DenMoveRest, x, z, ind;		//number of iterations and field splits, computational field, auxiliary vector
 	
-	Init(iters, 10, splits, 4);					//set value of iterations and field splits
+	Init(iters, 15, splits, 4);					//set value of iterations and field splits
 
+	Index(ind[0], 0) >> (z[0]);
 	//ensemble
-	for k=0..4							
+	for k=1..2	
 	{
-		Index(ind[k], k);
+		if (z[k - 1])
+			Index(ind[k], k) >> (z[k]);
+		iprint(1, ind[k]);
 
 		//field initialization 	
 		for n=1..splits							
@@ -27,7 +32,13 @@ sub main()
 		//iterative process
 		for j=1..iters							
 		{
-
+			if ((j%5 == 0) && (k == 1))
+			{			
+				for n=1..splits							
+				{
+					Fict(DenMoveRest[j][n]);
+				}
+			}
 			//collision of cells in one split
 			for n=1..splits						
 			{
@@ -35,7 +46,6 @@ sub main()
 				//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
 				Collide(field[ind[k] + j*3-3][n], field[ind[k] + j*3-2][n], field[ind[k] + j*3-2][n][0], field[ind[k] + j*3-2][n][1]);
 			}
-
 			//assembly splits with shadow edges										
 				//first split
 			FillEdges(field[ind[k] + j*3-2][1], field[ind[k] + j*3-2][splits][1], field[ind[k] + j*3-2][2][0], field[ind[k] + j*3-1][1]);
@@ -52,16 +62,19 @@ sub main()
 				NewLayer(field[ind[k] + j*3-1][n], field[ind[k] + j*3][n]); //old field[layer][split], new field[layer+1][split] 
 			}
 			
-			//saving to files
-			if (j%5 == 0)
-			{	
-				Save(j, 1, k, field[ind[k] + j*3][1]) >> (x[ind[k] + ((j - 1) * splits)]);
+			//calc density, rest, move
+			//save to files
+
+			//if (j%5 == 0)
+			//{	
+				Calc(k, 1, j, field[ind[k] + j*3][1], DenMoveRest[(iters*(k-1))+j][1], DenMoveRest[(iters*k)+j][1]) >> (x[ind[k] + ((j - 1) * splits)]);
 				for n=2..splits
 				{
 					if (x[ind[k] + ((j - 1) * splits) + n - 2])
-					Save(j, n, k, field[ind[k] + j*3][n]) >> (x[ind[k] + ((j - 1) * splits) + n - 1]);
+					Calc(k, n, j, field[ind[k] + j*3][n], DenMoveRest[(iters*(k-1))+j][n], DenMoveRest[(iters*k)+j][n]) >> (x[ind[k] + ((j - 1) * splits) + n - 1]);
 				}
-			}
+
+			//}
 
 		}
 	}

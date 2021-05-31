@@ -16,6 +16,7 @@
 #define HEIGHT 100
 #define ITERS 20
 #define AVERAGING_RADIUS 2
+#define SOURCE_WIDTH 4
 #define FIELD(i, j) field[(i)*(HEIGHT) + j]
 #define NEW_FIELD(i, j) new_field[(i)*(HEIGHT) + j]
 
@@ -87,63 +88,70 @@ extern "C"
 		}
 	}
 
-	double* load(char const* path)
+/*
+	void SaveToFiles(int iter, int split, InputDF &fi)
 	{
-		int j;
-		FILE *fl;
-		double *data=(double*)malloc(
-			(WIDTH-2*AVERAGING_RADIUS-1)*sizeof(double)
-		);
-
-		fl=fopen(path, "r");
-
-		for(j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS-1; j++) {
-			int row;
-			double val;
-			if (fscanf(fl, "%d\t%lf\n", &row, &val)!=2 || row!=j) {
-				fprintf(stderr, "ERROR: File '%s' has illegal format",
-					path);
-				abort();
-			} else {
-				data[j-AVERAGING_RADIUS]=val;
-			}
-		}
-
-		fclose(fl);
-		return data;
-	}
-
-	void write(FILE *fl, int j, int ensemble, double *old, double val)
-	{
-		assert(ensemble? !!old: !old);
-
-		fprintf(fl, "%d\t%lf\n", j, 
-			ensemble?
-				(val+ensemble*old[j-AVERAGING_RADIUS])/(ensemble+1) 
-				: val
-		);
-	}
-
-	void SaveToFiles(int iter, int layer, int ensemble, InputDF &fi)
-	{
-		char *field = fi.getData<char>();
-		int i, j, rad1 = 0, rad2 = 0;
+		int i, j;
 		char density_path[100], move_path[100], rest_path[100];
 		FILE *fl_density, *fl_move, *fl_rest;
-		double square=(AVERAGING_RADIUS*2+1)*(AVERAGING_RADIUS*2+1);
-		double *old_density=0, *old_move=0, *old_rest=0;
+		double square=(AVERAGING_RADIUS*2+1)*(AVERAGING_RADIUS*2+1), rad = 0;
 
 		sprintf(density_path, "density/%06d.xls", iter);
 		sprintf(move_path, "move/%06d.xls", iter);
 		sprintf(rest_path, "rest/%06d.xls", iter);
+
+
+		if (split == 1) 
+		{
+			rad = AVERAGING_RADIUS;
+			fl_density=fopen(density_path, "w");
+			fl_move=fopen(move_path, "w");
+			fl_rest=fopen(rest_path, "w");
+		}
+		else
+		{
+			fl_density=fopen(density_path, "a");
+			fl_move=fopen(move_path, "a");
+			fl_rest=fopen(rest_path, "a");
+		}
+		if (split == splits) rad = AVERAGING_RADIUS;
+
+
+		for (i = 0; i < (HEIGHT / splits) - rad; i++)
+		{
 		
-		if (ensemble>0) {
-			old_density=load(density_path);
-			old_move=load(move_path);
-			old_rest=load(rest_path);
+			new_density=1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+
+			write(fl_density, j, ensemble, old_density, new_density);
+			write(fl_move, j, ensemble, old_move, new_move);
+			write(fl_rest, j, ensemble, old_rest, new_rest);
 		}
 
-		if (layer == 1) 
+
+		fclose(fl_density);
+		fclose(fl_rest);
+		fclose(fl_move);
+	}
+
+*/
+
+	void Calculation(int ensemble, int split, int iter, InputDF &fi1, InputDF &fi2, OutputDF &dfo)
+	{
+		double *DenMoveRest = dfo.create<double>(HEIGHT * 3 / splits, 0);
+		double *OldDenMoveRest = fi2.getData<double>();
+		char *field = fi1.getData<char>();
+		int i, j, rad1 = 0, rad2 = 0, index = HEIGHT / splits;
+		double square=(AVERAGING_RADIUS*2+1)*(AVERAGING_RADIUS*2+1);
+		char density_path[100], move_path[100], rest_path[100];
+		FILE *fl_density, *fl_move, *fl_rest;
+
+		sprintf(density_path, "density/%06d.xls", iter);
+		sprintf(move_path, "move/%06d.xls", iter);
+		sprintf(rest_path, "rest/%06d.xls", iter);
+
+		if (split == 1) 
 		{
 			rad1 = AVERAGING_RADIUS;
 			rad2 = 0;
@@ -153,59 +161,61 @@ extern "C"
 		}
 		else
 		{
-		fl_density=fopen(density_path, "a");
-		fl_move=fopen(move_path, "a");
-		fl_rest=fopen(rest_path, "a");
+			fl_density=fopen(density_path, "a");
+			fl_move=fopen(move_path, "a");
+			fl_rest=fopen(rest_path, "a");
 		}
 
-		if (layer == splits)
+
+		if (split == splits)
 		{
 			rad2 = AVERAGING_RADIUS;
 			rad1 = 0;
 		}
-
 	
 		for (i=rad1; i < (HEIGHT / splits) - rad2; i++) {
 			int rest=0, move=0;
-			double new_density, new_move, new_rest;
 			for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS; j++) {
 				SumMass(i, j, &rest, &move, field);
 			}
-
-			
-			new_density=1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-			new_move=1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-			new_rest=1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
-
-			write(fl_density, j, ensemble, old_density, new_density);
-			write(fl_move, j, ensemble, old_move, new_move);
-			write(fl_rest, j, ensemble, old_rest, new_rest);
-			
+			DenMoveRest[i] = 1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			DenMoveRest[i + index] = 1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			DenMoveRest[i + index * 2] = 1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
+			if (ensemble > 1)
+			{
+				DenMoveRest[i] = (DenMoveRest[i]+(ensemble-1)*OldDenMoveRest[i])/(ensemble);	
+				DenMoveRest[i + index] = (DenMoveRest[i + index]+(ensemble-1)*OldDenMoveRest[i + index])/(ensemble);	
+				DenMoveRest[i + index * 2] = (DenMoveRest[i + index * 2]+(ensemble-1)*OldDenMoveRest[i + index * 2])/(ensemble);	
+			}
+			fprintf(fl_density, "%d\t%lf\n", split, DenMoveRest[i]);
+			fprintf(fl_move, "%d\t%lf\n", split, DenMoveRest[i + index]);
+			fprintf(fl_rest, "%d\t%lf\n", split, DenMoveRest[i + index * 2]);
 		}
-			fclose(fl_density);
-			fclose(fl_rest);
-			fclose(fl_move);
+		fclose(fl_density);
+		fclose(fl_rest);
+		fclose(fl_move);
 	}
 
 
-	void c_iprint(int n)
+	void c_iprint(int n, InputDF &fi)
 	{
-		printf("%d\n", n);
-		//for (int i = 0; i < 10; i++)
+		int data = fi.getValue<int>();	
+		//for (int i=0; i < (HEIGHT / splits)*3; i++)
 		//{
-		//	printf("%d ", test[i]);
+			printf("%d\n", data);
 		//}
-	}
-
-	void sources(int iter)
-	{
-			fill(0, WIDTH/2-SOURCE_WIDTH/2, HEIGHT, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0);
 	}
 
 	void SetField(OutputDF &df)
 	{
 		char *field = df.create<char>(2700, 0); //полоса
 		fill(field, 0, 0, HEIGHT / splits, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0);
+		fill(field, 0, WIDTH/2-SOURCE_WIDTH/2, HEIGHT, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0);
+	}
+
+	void InitFiction(OutputDF &df)
+	{
+		double *lox = df.create<double>(HEIGHT * 3 / splits, 0);
 	}
 
 	void InitIndex(OutputDF &df, int val)
