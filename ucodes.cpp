@@ -139,7 +139,7 @@ extern "C"
 
 	void Calculation(int ensemble, int split, int iter, InputDF &fi1, InputDF &fi2, OutputDF &dfo)
 	{
-		double *DenMoveRest = dfo.create<double>(HEIGHT * 3 / splits, 0);
+		double *DenMoveRest = dfo.create<double>((HEIGHT * 3 / splits) + AVERAGING_RADIUS, 0);
 		double *OldDenMoveRest = fi2.getData<double>();
 		char *field = fi1.getData<char>();
 		int i, j, rad1 = 0, rad2 = 0, index = HEIGHT / splits;
@@ -178,6 +178,7 @@ extern "C"
 			for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS; j++) {
 				SumMass(i, j, &rest, &move, field);
 			}
+			printf("%d\n", i);
 			DenMoveRest[i] = 1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 			DenMoveRest[i + index] = 1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 			DenMoveRest[i + index * 2] = 1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
@@ -210,12 +211,12 @@ extern "C"
 	{
 		char *field = df.create<char>(2700, 0); //полоса
 		fill(field, 0, 0, HEIGHT / splits, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0);
-		fill(field, 0, WIDTH/2-SOURCE_WIDTH/2, HEIGHT, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0);
+		//fill(field, 0, WIDTH/2-SOURCE_WIDTH/2, HEIGHT, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0);
 	}
 
 	void InitFiction(OutputDF &df)
 	{
-		double *lox = df.create<double>(HEIGHT * 3 / splits, 0);
+		double *lox = df.create<double>(HEIGHT * 3 / splits + AVERAGING_RADIUS, 0);
 	}
 
 	void InitIndex(OutputDF &df, int val)
