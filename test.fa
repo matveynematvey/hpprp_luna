@@ -1,5 +1,5 @@
 import SetField(name) as SetField;				       //field initialization 									
-import InitSplitsAndIters(name, int, name, int) as Init;	       //number of iterations and field splits initialization 
+import InitSplitsAndIters(name, int, name, int, name, int) as Init;	       //number of iterations and field splits initialization 
 import CollideCells(value, name, name, name) as Collide;	       //collide cells
 import FillEdges(value, value, value, name) as FillEdges;	       //assembly split with shadow edges
 import AssemblyNewLayer(value, name) as NewLayer;	 	       //assembly new layer
@@ -11,14 +11,13 @@ import c_iprint(int, value) as iprint;
 
 sub main()
 {
-	df iters, splits, field, DenMoveRest, x;			//number of iterations and field splits, computational field, auxiliary vector
+	df iters, splits, max_ensemble, field, DenMoveRest, x;			//number of iterations and field splits, computational field, auxiliary vector
 	
-	Init(iters, 50, splits, 4);					//set value of iterations and field splits
+	Init(iters, 100, splits, 4, max_ensemble, 50);					//set value of iterations and field splits
 
 	//ensemble
-	for k=1..5	
+	for k=1..max_ensemble	
 	{
-
 		//field initialization 	
 		for n=1..splits							
 		{
@@ -27,7 +26,7 @@ sub main()
 		//iterative process
 		for j=1..iters							
 		{
-			if ((j%5 == 0) && (k == 1))
+			if ((j%5 == 0) && (k == 1) || (j == 1) && (k == 1))
 			{			
 				for n=1..splits							
 				{
@@ -60,7 +59,7 @@ sub main()
 			//calc density, rest, move
 			//save to files
 
-			if (j%5 == 0)
+			if ((j%5 == 0) || j == 1)
 			{	
 				Calc(k, 1, j, field[k][j*3][1], DenMoveRest[k - 1][j][1], DenMoveRest[k][j][1]) >> (x[k][j][1]);
 				for n=2..splits

@@ -20,7 +20,7 @@
 #define FIELD(i, j) field[(i)*(HEIGHT) + j]
 #define NEW_FIELD(i, j) new_field[(i)*(HEIGHT) + j]
 
-size_t splits, iters;
+size_t splits, iters, max_ensemble;
 
 void fill(char *field, int i0, int j0, int i1, int j1,
 		  double r, double d, double l, double u,
@@ -155,15 +155,19 @@ extern "C"
 		{
 			rad1 = AVERAGING_RADIUS;
 			rad2 = 0;
-			fl_density=fopen(density_path, "w");
-			fl_move=fopen(move_path, "w");
-			fl_rest=fopen(rest_path, "w");
+			if(ensemble == max_ensemble){
+				fl_density=fopen(density_path, "w");
+				fl_move=fopen(move_path, "w");
+				fl_rest=fopen(rest_path, "w");
+			}
 		}
 		else
 		{
-			fl_density=fopen(density_path, "a");
-			fl_move=fopen(move_path, "a");
-			fl_rest=fopen(rest_path, "a");
+			if(ensemble == max_ensemble){
+				fl_density=fopen(density_path, "a");
+				fl_move=fopen(move_path, "a");
+				fl_rest=fopen(rest_path, "a");
+			}
 		}
 
 
@@ -173,12 +177,13 @@ extern "C"
 			rad1 = 0;
 		}
 	
-		for (i=rad1; i < (HEIGHT / splits) - rad2; i++) {
+		printf("%d\t%d\t%d\n", split, iter, ensemble);
+		fflush(stdout);
+		for (i=1 + rad1; i < (HEIGHT / splits) - rad2 - 1; i++) {
 			int rest=0, move=0;
 			for (j=AVERAGING_RADIUS; j<WIDTH-AVERAGING_RADIUS; j++) {
 				SumMass(i, j, &rest, &move, field);
 			}
-			printf("%d\n", i);
 			DenMoveRest[i] = 1.0*(rest+move)/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 			DenMoveRest[i + index] = 1.0*move/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
 			DenMoveRest[i + index * 2] = 1.0*rest/(HEIGHT-AVERAGING_RADIUS*2-1)/square;
@@ -188,13 +193,17 @@ extern "C"
 				DenMoveRest[i + index] = (DenMoveRest[i + index]+(ensemble-1)*OldDenMoveRest[i + index])/(ensemble);	
 				DenMoveRest[i + index * 2] = (DenMoveRest[i + index * 2]+(ensemble-1)*OldDenMoveRest[i + index * 2])/(ensemble);	
 			}
-			fprintf(fl_density, "%d\t%lf\n", split, DenMoveRest[i]);
-			fprintf(fl_move, "%d\t%lf\n", split, DenMoveRest[i + index]);
-			fprintf(fl_rest, "%d\t%lf\n", split, DenMoveRest[i + index * 2]);
+			if(ensemble == max_ensemble){
+				fprintf(fl_density, "%d\t%lf\n", i + (HEIGHT / splits)*(split - 1) , DenMoveRest[i]);
+				fprintf(fl_move, "%d\t%lf\n", split, DenMoveRest[i + index]);
+				fprintf(fl_rest, "%d\t%lf\n", split, DenMoveRest[i + index * 2]);
+			}
 		}
-		fclose(fl_density);
-		fclose(fl_rest);
-		fclose(fl_move);
+		if(ensemble == max_ensemble){
+			fclose(fl_density);
+			fclose(fl_rest);
+			fclose(fl_move);
+		}
 	}
 
 
@@ -224,12 +233,14 @@ extern "C"
 		df.setValue<int>(iters * 3 * val + val);
 	}
 
-	void InitSplitsAndIters(OutputDF &df1, int val1, OutputDF &df2, int val2)
+	void InitSplitsAndIters(OutputDF &df1, int val1, OutputDF &df2, int val2, OutputDF &df3, int val3)
 	{
 		splits = val2;
 		iters = val1;
+		max_ensemble = val3;
 		df1.setValue<int>(val1);
 		df2.setValue<int>(val2);
+		df3.setValue<int>(val3);
 	}
 
 	void CollideCells(InputDF &dfi, OutputDF &dfo, OutputDF &dfo1, OutputDF &dfo2)
