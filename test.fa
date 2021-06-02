@@ -1,5 +1,6 @@
-import SetField(name) as SetField;				       //field initialization 									
-import InitSplitsAndIters(name, int, name, int, name, int) as Init;	       //number of iterations and field splits initialization 
+import SetField(int, name) as SetField;				       //field initialization 	
+import SourceField(int, int, value, name) as SourceField;	       //field initialization 									
+import InitSplitsAndIters(name, int, name, int, name, int) as Init;    //number of iterations and field splits initialization 
 import CollideCells(value, name, name, name) as Collide;	       //collide cells
 import FillEdges(value, value, value, name) as FillEdges;	       //assembly split with shadow edges
 import AssemblyNewLayer(value, name) as NewLayer;	 	       //assembly new layer
@@ -13,7 +14,7 @@ sub main()
 {
 	df iters, splits, max_ensemble, field, DenMoveRest, x;			//number of iterations and field splits, computational field, auxiliary vector
 	
-	Init(iters, 100, splits, 4, max_ensemble, 50);					//set value of iterations and field splits
+	Init(iters, 1000, splits, 4, max_ensemble, 5);					//set value of iterations and field splits
 
 	//ensemble
 	for k=1..max_ensemble	
@@ -21,53 +22,65 @@ sub main()
 		//field initialization 	
 		for n=1..splits							
 		{
-			SetField(field[k][0][n]);				//field[number of layer][number of split]
+			SetField(n, field[k][0][n]);				//field[number of layer][number of split]
 		}
+
 		//iterative process
 		for j=1..iters							
 		{
-			if ((j%5 == 0) && (k == 1) || (j == 1) && (k == 1))
+
+			//field initialization 	
+			for n=1..splits							
+			{
+				SourceField(n, j, field[k][j*4 - 4][n], field[k][j*4 - 3][n]);		//field[number of layer][number of split]
+			}
+
+			//collision of cells in one split
+			for n=1..splits						
+			{
+				//number of split, old field[layer][split] layer, new field[layer+1][split] layer,
+				//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
+				Collide(field[k][j*4 - 3][n], field[k][j*4 - 2][n], field[k][j*4 - 2][n][0], field[k][j*4 - 2][n][1]);
+			}
+
+			//assembly splits with shadow edges										
+				//first split
+			FillEdges(field[k][j*4 - 2][1], field[k][j*4 - 2][splits][1], field[k][j*4 - 2][2][0], field[k][j*4 - 1][1]);
+				//last split
+			FillEdges(field[k][j*4 - 2][splits], field[k][j*4 - 2][splits - 1][1], field[k][j*4 - 2][1][0], field[k][j*4 - 1][splits]);		
+			for n=2..splits-1
+			{
+				FillEdges(field[k][j*4 - 2][n], field[k][j*4 - 2][n][1], field[k][j*4 - 2][n+1][0], field[k][j*4 - 1][n]);
+			}
+
+			//assembly new layer
+			for n=1..splits
+			{
+				NewLayer(field[k][j*4 - 1][n], field[k][j*4][n]); //old field[k][layer][split], new field[k][layer+1][split] 
+			}
+			
+
+			if ((j%5 == 0) && (k == 1))
 			{			
 				for n=1..splits							
 				{
 					Fict(DenMoveRest[k - 1][j][n]);
 				}
 			}
-			//collision of cells in one split
-			for n=1..splits						
-			{
-				//number of split, old field[layer][split] layer, new field[layer+1][split] layer,
-				//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
-				Collide(field[k][j*3-3][n], field[k][j*3-2][n], field[k][j*3-2][n][0], field[k][j*3-2][n][1]);
-			}
-			//assembly splits with shadow edges										
-				//first split
-			FillEdges(field[k][j*3-2][1], field[k][j*3-2][splits][1], field[k][j*3-2][2][0], field[k][j*3-1][1]);
-				//last split
-			FillEdges(field[k][j*3-2][splits], field[k][j*3-2][splits - 1][1], field[k][j*3-2][1][0], field[k][j*3-1][splits]);		
-			for n=2..splits-1
-			{
-				FillEdges(field[k][j*3-2][n], field[k][j*3-2][n][1], field[k][j*3-2][n+1][0], field[k][j*3-1][n]);
-			}
 
-			//assembly new layer
-			for n=1..splits
-			{
-				NewLayer(field[k][j*3-1][n], field[k][j*3][n]); //old field[k][layer][split], new field[k][layer+1][split] 
-			}
-			
 			//calc density, rest, move
 			//save to files
 
-			if ((j%5 == 0) || j == 1)
+			if (j%5 == 0)
 			{	
-				Calc(k, 1, j, field[k][j*3][1], DenMoveRest[k - 1][j][1], DenMoveRest[k][j][1]) >> (x[k][j][1]);
+				Calc(k, 1, j, field[k][j*4][1], DenMoveRest[k - 1][j][1], DenMoveRest[k][j][1]) >> (x[k][j][1]);
 				for n=2..splits
 				{
 					if (x[k][j][n - 1])
-					Calc(k, n, j, field[k][j*3][n], DenMoveRest[k - 1][j][n], DenMoveRest[k][j][n]) >> (x[k][j][n]);
+					Calc(k, n, j, field[k][j*4][n], DenMoveRest[k - 1][j][n], DenMoveRest[k][j][n]) >> (x[k][j][n]);
 				}
 			}
+
 
 		}
 	}

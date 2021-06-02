@@ -15,7 +15,7 @@
 #define WIDTH 100
 #define HEIGHT 100
 #define ITERS 20
-#define AVERAGING_RADIUS 2
+#define AVERAGING_RADIUS 1
 #define SOURCE_WIDTH 4
 #define FIELD(i, j) field[(i)*(HEIGHT) + j]
 #define NEW_FIELD(i, j) new_field[(i)*(HEIGHT) + j]
@@ -24,9 +24,9 @@ size_t splits, iters, max_ensemble;
 
 void fill(char *field, int i0, int j0, int i1, int j1,
 		  double r, double d, double l, double u,
-		  double r1, double r2, double r3, double r4)
+		  double r1, double r2, double r3, double r4, int split)
 {
-	int i, j;
+	int i, j, start = 0;
 	for (i = i0; i < i1; i++)
 	{
 		for (j = j0; j < j1; j++)
@@ -49,7 +49,7 @@ void fill(char *field, int i0, int j0, int i1, int j1,
 			if (drand48() < r4)
 				cell += RP4;
 
-			FIELD(i + 1, j)=cell;
+			FIELD(i + 1 - (HEIGHT / 4) * (split - 1), j)=cell;
 		}
 	}
 }
@@ -216,11 +216,18 @@ extern "C"
 		//}
 	}
 
-	void SetField(OutputDF &df)
+	void SetField(int split, OutputDF &df)
 	{
-		char *field = df.create<char>(2700, 0); //полоса
-		fill(field, 0, 0, HEIGHT / splits, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0);
-		//fill(field, 0, WIDTH/2-SOURCE_WIDTH/2, HEIGHT, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0);
+		char *field = df.create<char>(((HEIGHT / splits) + 2) * WIDTH, 0); //полоса
+		fill(field, (HEIGHT / splits) * (split - 1), 0, (HEIGHT / splits) * split, WIDTH, 0.7, 0.7, 0.7, 0.7, 0.25, 0, 0, 0, split);
+	}
+
+	void SourceField(int split, int iter, InputDF &fi, OutputDF &df)
+	{
+		char *field = fi.getData<char>();
+		df = fi;
+		if (iter == 5)
+			fill(field, (HEIGHT / splits) * (split - 1), WIDTH/2-SOURCE_WIDTH/2, (HEIGHT / splits) * split, WIDTH/2+SOURCE_WIDTH/2, 1, 1, 1, 1, 0.75, 0, 0, 0, split);
 	}
 
 	void InitFiction(OutputDF &df)
@@ -228,10 +235,6 @@ extern "C"
 		double *lox = df.create<double>(HEIGHT * 3 / splits + AVERAGING_RADIUS, 0);
 	}
 
-	void InitIndex(OutputDF &df, int val)
-	{
-		df.setValue<int>(iters * 3 * val + val);
-	}
 
 	void InitSplitsAndIters(OutputDF &df1, int val1, OutputDF &df2, int val2, OutputDF &df3, int val3)
 	{
@@ -249,11 +252,11 @@ extern "C"
 		char *gr1 = dfo1.create<char>(WIDTH, 0);
 		char *gr2 = dfo2.create<char>(WIDTH, 0);
 		char *field = dfi.getData<char>();
-		for (int i = 100; i < 2600; i++)
+		for (int i = WIDTH; i < ((HEIGHT / splits) + 1) * WIDTH; i++)
 				field[i] = collideL(field[i]);
-		for (int i = 100; i < 200; i++)
-			gr1[i - 100] = field[i];
-		for (int j = 2500, i = 0; j < 2600; j++, i++)
+		for (int i = WIDTH; i < WIDTH*2; i++)
+			gr1[i - WIDTH] = field[i];
+		for (int j = ((HEIGHT / splits)) * WIDTH, i = 0; j < ((HEIGHT / splits) + 1) * WIDTH; j++, i++)
 			gr2[i] = field[j];
 		
 	}
@@ -265,9 +268,9 @@ extern "C"
 		char *gr1 = dfi1.getData<char>();
 		char *gr2 = dfi2.getData<char>();
 		
-		for (int i = 0; i < 100; i++)
+		for (int i = 0; i < WIDTH; i++)
 				field[i] = gr1[i];
-		for (int j = 2600, i = 0; j < 2700; j++, i++)
+		for (int j = ((HEIGHT / splits) + 1) * WIDTH, i = 0; j < ((HEIGHT / splits) + 2) * WIDTH; j++, i++)
 				field[j] = gr2[i];
 		
 	}
@@ -275,7 +278,7 @@ extern "C"
 	void AssemblyNewLayer(InputDF &dfi, OutputDF &dfo)
 {
 		char *field = dfi.getData<char>();
-		char *new_field = dfo.create<char>(2700, 0);	
+		char *new_field = dfo.create<char>(((HEIGHT / splits) + 2) * WIDTH, 0);	
 		dfo = dfi;
 		int HEIGHT_N = HEIGHT / splits;
 		for (int i=1; i < HEIGHT_N+1; i++) 
