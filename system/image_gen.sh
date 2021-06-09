@@ -1,7 +1,7 @@
 #!/bin/sh
 
-zmin=3.2
-zmax=4.7
+zmin=1.2
+zmax=9.7
 
 for x in `ls $1/*.xls`; do
 	echo 'set term png
