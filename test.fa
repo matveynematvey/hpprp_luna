@@ -7,14 +7,14 @@ import AssemblyNewLayer(int, int, int, value, name) as NewLayer;	 	       //asse
 import Calculation(int, int, int, value, value, name) as Calc;	       //calculation of density, rest and move
 import SaveToFiles(int, int, value) as Save;	       	       	       //save to files
 import InitFiction(name) as Fict;
-import c_iprint(int, int, value) as iprint;
-
+//import c_iprint(int, int, value) as iprint;
+import c_iprint(int, int, int, int) as iprint;
 
 sub main()
 {
 	df iters, splits, max_ensemble, field, DenMoveRest, x;			//number of iterations and field splits, computational field, auxiliary vector
 	
-	Init(iters, 10, splits, 4, max_ensemble, 2);					//set value of iterations and field splits
+	Init(iters, 500, splits, 4, max_ensemble, 2);					//set value of iterations and field splits
 
 	//ensemble
 	for k=1..max_ensemble	
@@ -31,17 +31,22 @@ sub main()
 			//field initialization 	
 			for n=1..splits							
 			{
+				iprint(1, n, j, k);
 				SourceField(n, j, k, field[k][j*4 - 4][n], field[k][j*4 - 3][n]);		//field[number of layer][number of split]
+				iprint(2, n, j, k);
 			}
+			
 			
 			//collision of cells in one split
 			for n=1..splits						
-			{
+			{	
+				iprint(5, n, j, k);
 				//number of split, old field[layer][split] layer, new field[layer+1][split] layer,
 				//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
 				Collide(n, j, k, field[k][j*4 - 3][n], field[k][j*4 - 2][n], field[k][j*4 - 2][n][0], field[k][j*4 - 2][n][1]);
+				iprint(6, n, j, k);
 			}
-
+			
 			//assembly splits with shadow edges										
 				//first split
 			FillEdges(1, j, k, field[k][j*4 - 2][1], field[k][j*4 - 2][splits][1], field[k][j*4 - 2][2][0], field[k][j*4 - 1][1]);
@@ -51,14 +56,14 @@ sub main()
 			{
 				FillEdges(n, j, k, field[k][j*4 - 2][n], field[k][j*4 - 2][n-1][1], field[k][j*4 - 2][n+1][0], field[k][j*4 - 1][n]);
 			}
-
+			
 			//assembly new layer
 			for n=1..splits
 			{
 				NewLayer(n, j, k,field[k][j*4 - 1][n], field[k][j*4][n]); //old field[k][layer][split], new field[k][layer+1][split] 
 			}
 			
-			if ((j%5 == 0) && (k == 1))
+			if ((j%10 == 0) && (k == 1))
 			{			
 				Fict(DenMoveRest[k - 1][j][splits]);// k - endemble; j - iter; n - split
 			}
@@ -66,7 +71,8 @@ sub main()
 			//calc density, rest, move
 			//save to files
 
-			if (j%5 == 0)
+			
+			if (j%10 == 0)
 			{	
 				Calc(k, 1, j, field[k][j*4][1], DenMoveRest[k - 1][j][splits], DenMoveRest[k][j][1]) >> (x[k][j][1]);
 				for n=2..splits
