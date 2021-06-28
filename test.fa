@@ -1,68 +1,64 @@
-import SetField(int, int, name) as SetField;				       //field initialization 	
-import SourceField(int, int, int, value, name) as SourceField;	       //field initialization 									
-import InitSplitsAndIters(name, int, name, int, name, int) as Init;    //number of iterations and field splits initialization 
-import CollideCells(int, int, int,value, name, name, name) as Collide;	       //collide cells
-import FillEdges(int, int, int, value, value, value, name) as FillEdges;	       //assembly split with shadow edges
-import AssemblyNewLayer(int, int, int, value, name) as NewLayer;	 	       //assembly new layer
+import SetField(int, name) as SetField;				       //field initialization 	
+import SourceField(int, int, value, name) as SourceField;	       //field perturbation									
+import InitSplitsAndIters(name, int, name, int, name, int) as Init;    //number of iterations, field splits and ensemble initialization 
+import CollideCells(int, value, name, name, name) as Collide;	       //collide cells
+import FillEdges(int, value, value, value, name) as FillEdges;	       //assembly split with shadow edges
+import AssemblyNewLayer(int, value, name) as NewLayer;	 	       //assembly new layer
 import Calculation(int, int, int, value, value, name) as Calc;	       //calculation of density, rest and move
-import SaveToFiles(int, int, value) as Save;	       	       	       //save to files
-import InitFiction(name) as Fict;
-//import c_iprint(int, int, value) as iprint;
-import c_iprint(int, int, int, int) as iprint;
+import InitFiction(name) as Fict;				       //create a dummy vector
 
 sub main()
 {
-	df iters, splits, max_ensemble, field, DenMoveRest, x;			//number of iterations and field splits, computational field, auxiliary vector
+	df iters, splits, max_ensemble, field, DenMoveRest, x;		//number of iterations, field splits and ensemble, computational field, vector for Density, Move and Rest, auxiliary vector
 	
-	Init(iters, 500, splits, 4, max_ensemble, 2);					//set value of iterations and field splits
+	Init(iters, 500, splits, 3, max_ensemble, 2);			//set value of iterations, field splits and ensemble max value
 
-	//ensemble
+	//ensemble iteration
 	for k=1..max_ensemble	
 	{
+
 		//field initialization 	
 		for n=1..splits							
 		{
-			SetField(n, k, field[k][0][n]);				//field[number of layer][number of split]
+			SetField(n, field[k][0][n]);			 //field[ensemble][layer][split]
 		}
 
 		//iterative process
 		for j=1..iters							
 		{
-			//field initialization 	
+
+			//create a field perturbation
 			for n=1..splits							
 			{
-				iprint(1, n, j, k);
-				SourceField(n, j, k, field[k][j*4 - 4][n], field[k][j*4 - 3][n]);		//field[number of layer][number of split]
-				iprint(2, n, j, k);
+				SourceField(n, j, field[k][j*4 - 4][n], field[k][j*4 - 3][n]);	
 			}
 			
 			
 			//collision of cells in one split
 			for n=1..splits						
 			{	
-				iprint(5, n, j, k);
 				//number of split, old field[layer][split] layer, new field[layer+1][split] layer,
 				//upper edge[layer][split][0] of the new field, lower edge[layer][split][1] of the newfield
-				Collide(n, j, k, field[k][j*4 - 3][n], field[k][j*4 - 2][n], field[k][j*4 - 2][n][0], field[k][j*4 - 2][n][1]);
-				iprint(6, n, j, k);
+				Collide(n, field[k][j*4 - 3][n], field[k][j*4 - 2][n], field[k][j*4 - 2][n][0], field[k][j*4 - 2][n][1]);
 			}
 			
 			//assembly splits with shadow edges										
 				//first split
-			FillEdges(1, j, k, field[k][j*4 - 2][1], field[k][j*4 - 2][splits][1], field[k][j*4 - 2][2][0], field[k][j*4 - 1][1]);
+			FillEdges(1, field[k][j*4 - 2][1], field[k][j*4 - 2][splits][1], field[k][j*4 - 2][2][0], field[k][j*4 - 1][1]);
 				//last split
-			FillEdges(splits, j, k, field[k][j*4 - 2][splits], field[k][j*4 - 2][splits - 1][1], field[k][j*4 - 2][1][0], field[k][j*4 - 1][splits]);		
+			FillEdges(splits, field[k][j*4 - 2][splits], field[k][j*4 - 2][splits - 1][1], field[k][j*4 - 2][1][0], field[k][j*4 - 1][splits]);		
 			for n=2..splits-1
 			{
-				FillEdges(n, j, k, field[k][j*4 - 2][n], field[k][j*4 - 2][n-1][1], field[k][j*4 - 2][n+1][0], field[k][j*4 - 1][n]);
+				FillEdges(n, field[k][j*4 - 2][n], field[k][j*4 - 2][n-1][1], field[k][j*4 - 2][n+1][0], field[k][j*4 - 1][n]);
 			}
 			
 			//assembly new layer
 			for n=1..splits
 			{
-				NewLayer(n, j, k,field[k][j*4 - 1][n], field[k][j*4][n]); //old field[k][layer][split], new field[k][layer+1][split] 
+				NewLayer(n, field[k][j*4 - 1][n], field[k][j*4][n]); 
 			}
 			
+			//create a a dummy vector
 			if ((j%10 == 0) && (k == 1))
 			{			
 				Fict(DenMoveRest[k - 1][j][splits]);// k - endemble; j - iter; n - split
@@ -70,8 +66,6 @@ sub main()
 			
 			//calc density, rest, move
 			//save to files
-
-			
 			if (j%10 == 0)
 			{	
 				Calc(k, 1, j, field[k][j*4][1], DenMoveRest[k - 1][j][splits], DenMoveRest[k][j][1]) >> (x[k][j][1]);
